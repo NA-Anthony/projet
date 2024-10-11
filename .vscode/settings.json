@@ -1,0 +1,9 @@
+{
+    "java.project.sourcePaths": [
+        "Framework/src",
+        "Framework"
+    ],
+    "java.project.referencedLibraries": [
+        "/Users/nakanyanthony/Downloads/apache-tomcat-9.0.91/lib/servlet-api.jar"
+    ]
+}

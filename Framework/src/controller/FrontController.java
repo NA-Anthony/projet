@@ -3,51 +3,94 @@ package controller;
 import javax.servlet.*;
 import javax.servlet.http.*;
 import java.io.*;
+import java.lang.reflect.Method;
 import java.net.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import annotationClass.*;
+import modelClass.*;
 
 public class FrontController extends HttpServlet {
-    private boolean check = false;
-    private List<String> classNames = new ArrayList<>();
+    private HashMap<String, Mapping> hashMap = new HashMap<>();
 
-    public List<String> getClassNames() {
-        return classNames;
+    @Override
+    public void init() throws ServletException {
+        super.init(); // Appeler la méthode init de la superclasse HttpServlet
+        try {
+            initialisation();
+        } catch (Exception e) {
+            throw new ServletException(e.getMessage());
+        }
     }
 
-    public void setClassNames(List<String> classNames) {
-        this.classNames = classNames;
-    }
+    private void initialisation() throws Exception {
+        // Récupération des classes et méthodes annotées
+        String packageName = getServletContext().getInitParameter("AnnotationController");
+        List<Class<?>> classes = FrontController.getClasses(packageName);
 
-    public void setCheck(boolean check) {
-        this.check = check;
-    }
+        if (classes.size()==0) {
+            throw new ServletException("Package vide ou inexistant");
+        }
 
-    public boolean isCheck() {
-        return check;
+        for (int j = 0; j < classes.size(); j++) {
+            if (this.hasAnnotation(classes.get(j), AnnotationController.class)) {
+                Method[] methods = classes.get(j).getMethods();
+                for (Method method : methods) {
+                    if (method.isAnnotationPresent(Get.class)) {
+                        String url = method.getAnnotation(Get.class).value();
+                        String className = classes.get(j).getName();
+                        String methodName = method.getName();
+
+                        // Création d'une instance de Mapping et ajout au HashMap
+                        Mapping mapping = new Mapping(className, methodName);
+                        if(hashMap.containsKey(url)) {
+                            throw new ServletException("Duplication d'url");
+                        }
+                        hashMap.put(url, mapping);
+                    }
+                }
+            }
+        }
     }
 
     private boolean hasAnnotation(Class<?> classes, Class<? extends AnnotationController> annotation) {
         return classes.isAnnotationPresent(annotation);
     }
 
+    protected String getURLSplit(String str) {
+        String[] string = str.split("/");
+        return string[4];
+    }
+
     protected void processRequest(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         //URI /... et URL tout url
-        String urlString = request.getRequestURI().toString();
-        PrintWriter pw = response.getWriter();
-        String packageName = request.getServletContext().getInitParameter("AnnotationController");
-        List<Class<?>> classes = FrontController.getClasses(packageName,pw);
-        if (check == false) {
-            for (int j = 0; j < classes.size(); j++) {
-                if(hasAnnotation(classes.get(j), AnnotationController.class)) {
-                    classNames.add(classes.get(j).getName());
-                }
+        String url = request.getRequestURL().toString();
+        PrintWriter out = response.getWriter();
+        out.println(request.getRequestURI().toString());
+        String lastPart = getURLSplit(url);
+        // Vérification si l'URL existe dans le HashMap
+        if (hashMap.containsKey(lastPart)) {
+            Mapping mapping = hashMap.get(lastPart);
+            out.println("Controller: " + mapping.getClasse() + ", Methode: " + mapping.getMethode());
+
+            // Récupération de l'instance de la classe du contrôleur
+            try {
+                Class<?> controllerClass = Class.forName(mapping.getClasse());
+                Object controllerInstance = controllerClass.getDeclaredConstructor().newInstance();
+
+                // Récupération de la méthode à invoquer
+                Method method = controllerClass.getMethod(mapping.getMethode());
+                // Invocation de la méthode
+                Object result = method.invoke(controllerInstance);
+                out.println((String)result);
+            } catch (Exception e) {
+                out.println("Erreur lors de l'invoquation de la méthode: " + e.getMessage());
+                e.printStackTrace();
             }
-            setCheck(true);
+        } else {
+            out.println("URL non existante");
         }
-        pw.println(urlString);
-        printClasses(pw, classNames);
     }
 
     private void printClasses(PrintWriter printWriter, List<String> list) {
@@ -56,11 +99,10 @@ public class FrontController extends HttpServlet {
         }
     }
 
-    public static List<Class<?>> getClasses(String packageName,PrintWriter printWriter) {
+    public static List<Class<?>> getClasses(String packageName) {
         List<Class<?>> classes = new ArrayList<>();
         URL path = Thread.currentThread().getContextClassLoader().getResource(packageName.replace('.', File.separatorChar));
         if (path == null) {
-            printWriter.println("Ressource not found for package: "+packageName);
             return classes;
         }
         File directory;
@@ -72,7 +114,6 @@ public class FrontController extends HttpServlet {
         }
 
         if (!directory.exists()) {
-            printWriter.println("Directory not found: " + path.toString());
             return classes;
         }
 

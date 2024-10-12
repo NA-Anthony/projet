@@ -8,6 +8,7 @@ set -e
 src_dir="/Users/nakanyanthony/Documents/GitHub/projet/Framework/src"
 temp_src="/Users/nakanyanthony/Documents/GitHub/projet/Framework/temp-src"
 work_dir="/Users/nakanyanthony/Documents/GitHub/projet/Test"
+lib_dir="/Users/nakanyanthony/Documents/GitHub/projet/Framework/lib"
 
 # Créer le répertoire temporaire
 mkdir -p "$temp_src"
@@ -18,7 +19,7 @@ find "$src_dir" -name "*.java" -exec cp {} "$temp_src" \;
 cd "$temp_src"
 
 # Aller dans le répertoire source et compiler les fichiers .java
-javac -d "$temp_src"/bin *.java
+javac -d "$temp_src"/bin -cp "$lib_dir"/*.jar *.java
 
 # # Créer un fichier JAR
 jar -cvf "$work_dir/lib/myServlet.jar" -C "$temp_src"/bin .

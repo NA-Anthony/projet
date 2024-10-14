@@ -83,7 +83,32 @@ public class FrontController extends HttpServlet {
                 Method method = controllerClass.getMethod(mapping.getMethode());
                 // Invocation de la méthode
                 Object result = method.invoke(controllerInstance);
-                out.println((String)result);
+                switch (result) {
+                    case String string -> {
+                        response.setContentType("text/plain");
+                        out.println(string);
+                    }
+                    case ModelView mv -> {
+                        String viewUrl = mv.getUrl();
+                        HashMap<String, Object> data = mv.getData();
+                        // Transférer les données vers la vue
+                        for (String key : data.keySet()) {
+                            request.setAttribute(key, data.get(key));
+                        }
+                        try {
+                            // Faire une redirection vers la vue associée
+                            request.getRequestDispatcher(viewUrl).forward(request, response);
+                        } catch (ServletException e) {
+                            // En cas d'erreur lors de la redirection, renvoyer une erreur 500
+                            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                            out.println("<h1>500 Internal Server Error</h1>");
+                            out.println(
+                                    "<p>Une erreur s'est produite lors de l'appel à la vue : " + e.getMessage() + "</p>");
+                            e.printStackTrace(out);
+                        }
+                    }
+                    default -> out.println(result.toString());
+                }
             } catch (Exception e) {
                 out.println("Erreur lors de l'invoquation de la méthode: " + e.getMessage());
                 e.printStackTrace();

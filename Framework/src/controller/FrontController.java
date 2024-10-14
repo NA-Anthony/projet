@@ -126,19 +126,7 @@ public class FrontController extends HttpServlet {
                             args[i] = obj;
                         }
                         else {
-                            // Vérifier si le paramètre est un objet
-                            Class<?> parameterType = parameter.getType();
-                                                                    
-                            Object obj = parameterType.getDeclaredConstructor().newInstance();
-                            Field[] fields = obj.getClass().getDeclaredFields();
-                            Method[] methods = obj.getClass().getDeclaredMethods();
-
-                            for (Field field : fields) {
-                                // System.out.println(parameter.getName() + "." + field.getName());
-                                Object value = Utility.parseValue(request.getParameter(parameter.getName() + "." + field.getName()), field.getType());
-                                setObjectField(obj, methods, field, value);
-                            }
-                            args[i] = obj;
+                            throw new ServletException("ETU002444: Erreur");
                             
                         }
                         
@@ -173,7 +161,7 @@ public class FrontController extends HttpServlet {
                     default -> throw new ServletException("Ce type de retour ne peut pas etre gere pour le moment");
                 }
             } catch (Exception e) {
-                out.println("Erreur lors de l'invoquation de la méthode: " + e.getMessage());
+                out.println(e.getMessage());
             }
         } else {
             response.sendError(HttpServletResponse.SC_NOT_FOUND);

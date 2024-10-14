@@ -3,7 +3,7 @@ package controller;
 import javax.servlet.*;
 import javax.servlet.http.*;
 import java.io.*;
-import java.lang.reflect.Method;
+import java.lang.reflect.*;
 import java.net.*;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -79,10 +79,30 @@ public class FrontController extends HttpServlet {
                 Class<?> controllerClass = Class.forName(mapping.getClasse());
                 Object controllerInstance = controllerClass.getDeclaredConstructor().newInstance();
 
-                // Récupération de la méthode à invoquer
-                Method method = controllerClass.getMethod(mapping.getMethode());
+                Method[] declarMethods = controllerClass.getDeclaredMethods();
+
+                Method maMethod = null;
+
+                for (Method method : declarMethods) {
+                    if (method.getName().equals(mapping.getMethode())) {
+                        maMethod = method;
+                        break;
+                    }
+                }
+
+                Parameter[] parameters = maMethod.getParameters();
+                Object[] args = new Object[parameters.length];
+
+                ArrayList<String> parameterNames = new ArrayList<>();
+                String paramValue = null;
+
+                for (int i = 0; i < parameters.length; i++) {
+                    Parameter parameter = parameters[i];
+                    parameterNames.add(parameter.getName());
+                }
+
                 // Invocation de la méthode
-                Object result = method.invoke(controllerInstance);
+                Object result = maMethod.invoke(controllerInstance);
                 switch (result) {
                     case String string -> {
                         response.setContentType("text/plain");
@@ -107,14 +127,13 @@ public class FrontController extends HttpServlet {
                             e.printStackTrace(out);
                         }
                     }
-                    default -> out.println(result.toString());
+                    default -> throw new ServletException("Ce type de retour ne peut pas etre gere pour le moment");
                 }
             } catch (Exception e) {
                 out.println("Erreur lors de l'invoquation de la méthode: " + e.getMessage());
-                e.printStackTrace();
             }
         } else {
-            out.println("URL non existante");
+            response.sendError(HttpServletResponse.SC_NOT_FOUND);
         }
     }
 

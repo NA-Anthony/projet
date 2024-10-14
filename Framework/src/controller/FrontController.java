@@ -99,10 +99,53 @@ public class FrontController extends HttpServlet {
                 for (int i = 0; i < parameters.length; i++) {
                     Parameter parameter = parameters[i];
                     parameterNames.add(parameter.getName());
-                }
+                    if (Utility.isPrimitive(parameter.getType())) {
+                        if (parameter.isAnnotationPresent(ParamName.class)) {
+                            ParamName annotation = parameter.getAnnotation(ParamName.class);
+                            // Utiliser le nom spécifié dans l'annotation pour récupérer la valeur de la requête
+                            paramValue = request.getParameter(annotation.value());
+                            args[i] = paramValue;
+                        }
+                        else{
+                            throw new ServletException("ETU002444: Erreur");
+                        }
+                    }
+                    else {
+                        if (parameter.isAnnotationPresent(ParamName.class)) {
+                            // Vérifier si le paramètre est un objet
+                            Class<?> parameterType = parameter.getType();
+                                                                    
+                            Object obj = parameterType.getDeclaredConstructor().newInstance();
+                            Field[] fields = obj.getClass().getDeclaredFields();
+                            Method[] methods = obj.getClass().getDeclaredMethods();
 
+                            for (Field field : fields) {
+                                Object value = Utility.parseValue(request.getParameter(parameter.getAnnotation(ParamName.class).value() + "." + field.getName()), field.getType());
+                                setObjectField(obj, methods, field, value);
+                            }
+                            args[i] = obj;
+                        }
+                        else {
+                            // Vérifier si le paramètre est un objet
+                            Class<?> parameterType = parameter.getType();
+                                                                    
+                            Object obj = parameterType.getDeclaredConstructor().newInstance();
+                            Field[] fields = obj.getClass().getDeclaredFields();
+                            Method[] methods = obj.getClass().getDeclaredMethods();
+
+                            for (Field field : fields) {
+                                // System.out.println(parameter.getName() + "." + field.getName());
+                                Object value = Utility.parseValue(request.getParameter(parameter.getName() + "." + field.getName()), field.getType());
+                                setObjectField(obj, methods, field, value);
+                            }
+                            args[i] = obj;
+                            
+                        }
+                        
+                    }
+                }
                 // Invocation de la méthode
-                Object result = maMethod.invoke(controllerInstance);
+                Object result = maMethod.invoke(controllerInstance,args);
                 switch (result) {
                     case String string -> {
                         response.setContentType("text/plain");
@@ -135,6 +178,18 @@ public class FrontController extends HttpServlet {
         } else {
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
         }
+    }
+
+    public static Object setObjectField(Object obj, Method[] methods, Field field, Object value) throws Exception {
+        String setterMethod = "set" + Utility.capitalize(field.getName());
+
+        for (Method method : methods) {
+            if (!method.getName().equals(setterMethod)) {
+                continue;
+            }   
+            return method.invoke(obj, value);
+        }
+        throw new Exception("Aucun setter trouvé pour l'attribut: " + field.getName());
     }
 
     private void printClasses(PrintWriter printWriter, List<String> list) {

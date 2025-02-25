@@ -127,8 +127,6 @@ public class FrontController extends HttpServlet {
                         for (Field field : fields) {
                             Object value = Utility.parseValue(request.getParameter(parameter.getName() + "." + field.getName()), field.getType());
                             setObjectField(obj, methods, field, value);
-                        }
-                        args[i] = obj;
                     }
                 }
                 
@@ -161,7 +159,7 @@ public class FrontController extends HttpServlet {
                     default -> throw new ServletException("Ce type de retour ne peut pas etre gere pour le moment");
                 }
             } catch (Exception e) {
-                out.println("Erreur lors de l'invoquation de la méthode: " + e.getMessage());
+                out.println(e.getMessage());
             }
         } else {
             response.sendError(HttpServletResponse.SC_NOT_FOUND);

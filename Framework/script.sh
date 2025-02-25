@@ -18,6 +18,10 @@ find "$src_dir" -name "*.java" -exec cp {} "$temp_src" \;
 
 cd "$temp_src"
 
+
+# Copier les fichiers de la bibliothèque dans le dossier temporaire
+rsync -av --progress "$lib_dir/" "$temp_src/lib/"
+
 # Aller dans le répertoire source et compiler les fichiers .java
 javac -d "$temp_src"/bin -cp "$lib_dir"/*.jar *.java
 

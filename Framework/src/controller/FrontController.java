@@ -79,6 +79,14 @@ public class FrontController extends HttpServlet {
                 Class<?> controllerClass = Class.forName(mapping.getClasse());
                 Object controllerInstance = controllerClass.getDeclaredConstructor().newInstance();
 
+                Field[] fieldss = controllerInstance.getClass().getDeclaredFields();
+                for (Field field : fieldss) {
+                    if (field.getType().equals(MySession.class)) {
+                        field.setAccessible(true);
+                        field.set(controllerInstance, new MySession(request));
+                    }
+                }
+
                 Method[] declarMethods = controllerClass.getDeclaredMethods();
 
                 Method maMethod = null;
@@ -89,6 +97,7 @@ public class FrontController extends HttpServlet {
                         break;
                     }
                 }
+                out.println(maMethod);
 
                 Parameter[] parameters = maMethod.getParameters();
                 Object[] args = new Object[parameters.length];
@@ -98,52 +107,31 @@ public class FrontController extends HttpServlet {
 
                 for (int i = 0; i < parameters.length; i++) {
                     Parameter parameter = parameters[i];
-                    parameterNames.add(parameter.getName());
-                    if (Utility.isPrimitive(parameter.getType())) {
+                    if (parameter.getType().equals(HttpServletRequest.class)) {
+                        args[i] = request; // Injecter la requête HTTP
+                    } else if (Utility.isPrimitive(parameter.getType())) {
                         if (parameter.isAnnotationPresent(ParamName.class)) {
                             ParamName annotation = parameter.getAnnotation(ParamName.class);
-                            // Utiliser le nom spécifié dans l'annotation pour récupérer la valeur de la requête
                             paramValue = request.getParameter(annotation.value());
                             args[i] = paramValue;
-                        }
-                        else{
+                        } else {
                             throw new ServletException("ETU002444: Erreur");
                         }
-                    }
-                    else {
-                        if (parameter.isAnnotationPresent(ParamName.class)) {
-                            // Vérifier si le paramètre est un objet
-                            Class<?> parameterType = parameter.getType();
-                                                                    
-                            Object obj = parameterType.getDeclaredConstructor().newInstance();
-                            Field[] fields = obj.getClass().getDeclaredFields();
-                            Method[] methods = obj.getClass().getDeclaredMethods();
-
-                            for (Field field : fields) {
-                                Object value = Utility.parseValue(request.getParameter(parameter.getAnnotation(ParamName.class).value() + "." + field.getName()), field.getType());
-                                setObjectField(obj, methods, field, value);
-                            }
-                            args[i] = obj;
+                    } else {
+                        // Gestion des objets personnalisés
+                        Class<?> parameterType = parameter.getType();
+                        Object obj = parameterType.getDeclaredConstructor().newInstance();
+                        Field[] fields = obj.getClass().getDeclaredFields();
+                        Method[] methods = obj.getClass().getDeclaredMethods();
+                
+                        for (Field field : fields) {
+                            Object value = Utility.parseValue(request.getParameter(parameter.getName() + "." + field.getName()), field.getType());
+                            setObjectField(obj, methods, field, value);
                         }
-                        else {
-                            // Vérifier si le paramètre est un objet
-                            Class<?> parameterType = parameter.getType();
-                                                                    
-                            Object obj = parameterType.getDeclaredConstructor().newInstance();
-                            Field[] fields = obj.getClass().getDeclaredFields();
-                            Method[] methods = obj.getClass().getDeclaredMethods();
-
-                            for (Field field : fields) {
-                                // System.out.println(parameter.getName() + "." + field.getName());
-                                Object value = Utility.parseValue(request.getParameter(parameter.getName() + "." + field.getName()), field.getType());
-                                setObjectField(obj, methods, field, value);
-                            }
-                            args[i] = obj;
-                            
-                        }
-                        
+                        args[i] = obj;
                     }
                 }
+                
                 // Invocation de la méthode
                 Object result = maMethod.invoke(controllerInstance,args);
                 switch (result) {

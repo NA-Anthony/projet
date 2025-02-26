@@ -51,8 +51,31 @@ public class Test {
         return modelView;
     }
 
-    @Get("log")
+    @Post("log")
     public ModelView log(HttpServletRequest request) {
+        String identifiant = request.getParameter("identifiant");
+        String mdp = request.getParameter("mdp");
+
+        // Supposons que vous ayez une classe `UserService` pour gérer la connexion
+        UserService userService = new UserService();
+        User user = userService.authentifier(identifiant, mdp); 
+
+        ModelView modelView = new ModelView();
+        modelView.setUrl("/checkSession.jsp");
+
+        MySession session = new MySession(request);
+        
+        if (user != null) {
+            session.add("user", user);
+            session.add("message", "Bienvenue, " + user.getName());
+        } else {
+            modelView.addObject("message", "Identifiants incorrects !");
+        }
+        return modelView;
+    }
+
+    @Get("log1")
+    public ModelView log2(HttpServletRequest request) {
         String identifiant = request.getParameter("identifiant");
         String mdp = request.getParameter("mdp");
 

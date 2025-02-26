@@ -36,15 +36,28 @@ public class FrontController extends HttpServlet {
         for (int j = 0; j < classes.size(); j++) {
             if (this.hasAnnotation(classes.get(j), AnnotationController.class)) {
                 Method[] methods = classes.get(j).getMethods();
+                String className = classes.get(j).getName();
                 for (Method method : methods) {
+                    String methodName = method.getName();
+                    // Détecter les méthodes annotées avec @Get
                     if (method.isAnnotationPresent(Get.class)) {
                         String url = method.getAnnotation(Get.class).value();
-                        String className = classes.get(j).getName();
-                        String methodName = method.getName();
-
-                        // Création d'une instance de Mapping et ajout au HashMap
+        
+                        // Créer une instance de Mapping et l'ajouter au HashMap
                         Mapping mapping = new Mapping(className, methodName);
-                        if(hashMap.containsKey(url)) {
+                        if (hashMap.containsKey(url)) {
+                            throw new ServletException("Duplication d'url");
+                        }
+                        hashMap.put(url, mapping);
+                    }
+        
+                    // Détecter les méthodes annotées avec @Post
+                    if (method.isAnnotationPresent(Post.class)) {
+                        String url = method.getAnnotation(Post.class).value();
+        
+                        // Créer une instance de Mapping et l'ajouter au HashMap
+                        Mapping mapping = new Mapping(className, methodName);
+                        if (hashMap.containsKey(url)) {
                             throw new ServletException("Duplication d'url");
                         }
                         hashMap.put(url, mapping);
@@ -52,6 +65,39 @@ public class FrontController extends HttpServlet {
                 }
             }
         }
+    }
+
+    private void registerMethods(Class<?> clazz) throws ServletException {
+        if (this.hasAnnotation(clazz, AnnotationController.class)) {
+            Method[] methods = clazz.getMethods();
+            String className = clazz.getName();
+    
+            for (Method method : methods) {
+                String methodName = method.getName();
+    
+                // Vérifier si la méthode est annotée avec @Get
+                if (method.isAnnotationPresent(Get.class)) {
+                    String url = method.getAnnotation(Get.class).value();
+                    registerMapping(url, className, methodName);
+                }
+    
+                // Vérifier si la méthode est annotée avec @Post
+                if (method.isAnnotationPresent(Post.class)) {
+                    String url = method.getAnnotation(Post.class).value();
+                    registerMapping(url, className, methodName);
+                }
+    
+                // Ajouter d'autres annotations ici (par exemple, @Put, @Delete, etc.)
+            }
+        }
+    }
+    
+    private void registerMapping(String url, String className, String methodName) throws ServletException {
+        Mapping mapping = new Mapping(className, methodName);
+        if (hashMap.containsKey(url)) {
+            throw new ServletException("Duplication d'url: " + url);
+        }
+        hashMap.put(url, mapping);
     }
 
     private boolean hasAnnotation(Class<?> classes, Class<? extends AnnotationController> annotation) {
@@ -165,6 +211,12 @@ public class FrontController extends HttpServlet {
                 
                 // Invocation de la méthode
                 Object result = maMethod.invoke(controllerInstance,args);
+
+                for (Object arg : args) {
+                    if (arg instanceof ChangeSession) {
+                        Utility.CustomSessionToHttpSession((ChangeSession)arg, request);
+                    }
+                }
                 switch (result) {
                     case String string -> {
                         response.setContentType("text/plain");

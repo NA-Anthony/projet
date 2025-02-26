@@ -6,7 +6,7 @@
     <title>Login</title>
 </head>
 <body>
-    <form action="log" method="get">
+    <form action="log" method="post">
         <label for="identifiant">Nom:</label>
         <input type="text" id="identifiant" name="identifiant">
         <br>

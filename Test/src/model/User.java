@@ -5,6 +5,7 @@ import annotationClass.*;
 public class User {
     @Param("username")
     private String name;
+    @Param("userage")
     private int age;
     public String getName() {
         return name;

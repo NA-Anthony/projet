@@ -51,26 +51,18 @@ public class FrontController extends HttpServlet {
     }
 
     private void processControllerMethod(Class<?> controllerClass, Method method) throws Exception {
-        String url = method.getAnnotation(Url.class).path();
+        String url = method.getAnnotation(Url.class).path(); // Récupérer le chemin de l'URL
         String className = controllerClass.getName();
         String methodName = method.getName();
-
-        // Déterminer le verbe HTTP (GET, POST, etc.)
-        String httpMethod = getHttpVerbFromMethod(method);
-
+    
+        // Par défaut, on suppose que c'est une méthode GET
+        String httpMethod = "GET";
+    
         // Créer un nouveau Verb
         Verb verb = new Verb(httpMethod, methodName);
-
+    
         // Enregistrer le mapping
         registerMapping(url, className, verb);
-    }
-
-    private String getHttpVerbFromMethod(Method method) {
-        if (method.isAnnotationPresent(Post.class)) {
-            return "POST";
-        } else {
-            return "GET"; // Par défaut, on suppose que c'est une méthode GET
-        }
     }
 
     private void registerMapping(String url, String className, Verb verb) throws ServletException {
@@ -88,37 +80,38 @@ public class FrontController extends HttpServlet {
     // Gestion des requêtes
     protected void processRequest(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         String url = getURLSplit(request.getRequestURL().toString());
-        String httpMethod = request.getMethod(); // GET, POST, etc.
-
+    
         if (hashMap.containsKey(url)) {
             Mapping mapping = hashMap.get(url);
-            Verb verb = mapping.findVerbByType(httpMethod);
-
-            if (verb != null) {
-                try {
-                    handleRequestMapping(mapping, verb, request, response);
-                } catch (Exception e) {
-                    throw new ServletException("Erreur lors de l'invocation de la méthode: " + e.getMessage());
-                }
-            } else {
-                response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED); // 405 Method Not Allowed
+    
+            try {
+                handleRequestMapping(mapping, request, response);
+            } catch (Exception e) {
+                throw new ServletException("Erreur lors de l'invocation de la méthode: " + e.getMessage());
             }
         } else {
             response.sendError(HttpServletResponse.SC_NOT_FOUND); // 404 Not Found
         }
     }
 
-    private void handleRequestMapping(Mapping mapping, Verb verb, HttpServletRequest request, HttpServletResponse response) throws Exception {
-        Class<?> controllerClass = Class.forName(mapping.getClasse());
-        Object controllerInstance = createControllerInstance(controllerClass, request);
-
-        Method method = findMethod(controllerClass, verb.getMethod());
-        Object[] args = resolveMethodArguments(method, request);
-
-        if (method.isAnnotationPresent(Restapi.class)) {
-            handleRestApiMethod(method, controllerInstance, args, response);
+    private void handleRequestMapping(Mapping mapping, HttpServletRequest request, HttpServletResponse response) throws Exception {
+        String httpMethod = "GET"; // Par défaut, on utilise GET
+        Verb verb = mapping.findVerbByType(httpMethod);
+    
+        if (verb != null) {
+            Class<?> controllerClass = Class.forName(mapping.getClasse());
+            Object controllerInstance = createControllerInstance(controllerClass, request);
+    
+            Method method = findMethod(controllerClass, verb.getMethod());
+            Object[] args = resolveMethodArguments(method, request);
+    
+            if (method.isAnnotationPresent(Restapi.class)) {
+                handleRestApiMethod(method, controllerInstance, args, response);
+            } else {
+                handleRegularMethod(method, controllerInstance, args, request, response);
+            }
         } else {
-            handleRegularMethod(method, controllerInstance, args, request, response);
+            response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED); // 405 Method Not Allowed
         }
     }
 

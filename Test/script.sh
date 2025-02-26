@@ -3,16 +3,43 @@
 # Arrêter le script en cas d'erreur
 set -e
 
+path=$(pwd)
+
+# Charger le fichier de configuration
+config_file="config.properties"
+
+if [ ! -f "$config_file" ]; then
+    echo "Erreur : Le fichier de configuration '$config_file' est introuvable."
+    exit 1
+fi
+
+# Lire la valeur de tomcat_path
+tomcat_path=$(grep "^tomcat_path=" "$config_file" | cut -d '=' -f2)
+projet=$(grep "^projet=" "$config_file" | cut -d '=' -f2)
+
+
+if [ -z "$tomcat_path" ]; then
+    echo "Sélectionnez le dossier Tomcat..."
+    tomcat_path=$(osascript -e 'tell application "Finder" to choose folder with prompt "Sélectionnez le dossier Tomcat"' -e 'POSIX path of result')
+
+    # Supprimer le dernier "/" s'il est présent
+    tomcat_path=$(echo "$tomcat_path" | sed 's:/*$::')
+
+    # Sauvegarde dans le fichier de configuration
+    echo "$tomcat_path" >> "$config_file"
+fi
+
+
 # Définir les répertoires source, temporaire et de travail
 framework_src="/Users/nakanyanthony/Documents/GitHub/projet/Framework"
-src_dir="/Users/nakanyanthony/Documents/GitHub/projet/Test/src"
-temp_src="/Users/nakanyanthony/Documents/GitHub/projet/Test/temp-src"
-work_dir="/Users/nakanyanthony/Downloads/apache-tomcat-9.0.96/webapps"
-lib_dir="/Users/nakanyanthony/Documents/GitHub/projet/Test/lib"
-config_dir="/Users/nakanyanthony/Documents/GitHub/projet/Test/config"
-web_dir="/Users/nakanyanthony/Documents/GitHub/projet/Test/web"
-tomcat_bin="/Users/nakanyanthony/Downloads/apache-tomcat-9.0.96/bin"
-destination_war="/Users/nakanyanthony/Downloads/apache-tomcat-9.0.96/webapps/destination.war"
+src_dir="$path/src"
+temp_src="$path/temp-src"
+work_dir="$tomcat_path/webapps"
+lib_dir="$path/lib"
+config_dir="$path/config"
+web_dir="$path/web"
+tomcat_bin="$tomcat_path/bin"
+destination_war="$tomcat_path/webapps/$projet.war"
 
 cd "$framework_src"
 ./script.sh
@@ -51,5 +78,4 @@ rm -rf "$temp_src"
 # Démarrage de Tomcat
 cd "$tomcat_bin"
 ./startup.sh
-
 echo "                          -------           Déploiement terminé          -------"

@@ -9,6 +9,8 @@ import java.util.Map;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
+import javax.servlet.http.*;
+
 public class Utility {
     private static final Gson gson = new Gson();
     public static boolean isPrimitive(Class<?> clazz) {
@@ -65,5 +67,30 @@ public class Utility {
         HashMap<String, Object> data = modelView.getData();
         MyJson myJson = new MyJson();
         return myJson.getGson().toJson(data);
+    }
+
+    public static ChangeSession HttpSessionToCustomSession(HttpSession httpSession) {
+        ChangeSession changeSession = new ChangeSession();
+
+        // Copier tous les attributs de la session HTTP vers la session personnalisée
+        Enumeration<?> attrNames = httpSession.getAttributeNames();
+        while (attrNames.hasMoreElements()) {
+            String attributeName = (String) attrNames.nextElement();
+            Object attributeValue = httpSession.getAttribute(attributeName);
+            changeSession.add(attributeName, attributeValue);
+        }
+
+        return changeSession;
+    }
+
+    public static void CustomSessionToHttpSession(ChangeSession changeSession, HttpServletRequest request) {
+        // Créer une nouvelle session HTTP
+        HttpSession httpSession = request.getSession(true);
+
+        // Ajouter tous les attributs de la session personnalisée à la session HTTP
+        for (Map.Entry<String, Object> entry : changeSession.hashMap.entrySet()) {
+            httpSession.setAttribute(entry.getKey(), entry.getValue());
+        }
+        // return httpSession;
     }
 }

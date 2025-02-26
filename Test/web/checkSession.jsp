@@ -14,7 +14,7 @@
         if (user != null) {
     %>
         <p>Utilisateur connecté : <%= user.getName() %></p>
-        <form action="deconnexion" method="post">
+        <form action="deconnexion" method="get">
             <button type="submit">Déconnexion</button>
         </form>
     <%

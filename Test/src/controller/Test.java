@@ -108,4 +108,18 @@ public class Test {
         }
         return modelView;
     }
+
+    @Restapi
+    @Get("rest-api")
+    public ModelView getRestApi() {
+        ModelView mv = new ModelView();
+        mv.addObject("message", "Ceci est une réponse JSON");
+        return mv;
+    }
+
+    @Restapi
+    @Get("rest-api-string")
+    public String getRestApiString() {
+        return "Ceci est une réponse JSON simple";
+    }
 }

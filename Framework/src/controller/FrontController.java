@@ -97,7 +97,6 @@ public class FrontController extends HttpServlet {
                         break;
                     }
                 }
-                out.println(maMethod);
 
                 Parameter[] parameters = maMethod.getParameters();
                 Object[] args = new Object[parameters.length];
@@ -127,7 +126,41 @@ public class FrontController extends HttpServlet {
                         for (Field field : fields) {
                             Object value = Utility.parseValue(request.getParameter(parameter.getName() + "." + field.getName()), field.getType());
                             setObjectField(obj, methods, field, value);
+                        }
+                        args[i] = obj;
                     }
+                }
+
+                if (maMethod.isAnnotationPresent(Restapi.class)) {
+                    // Récupérer la valeur de retour de la méthode
+                    Object result = maMethod.invoke(controllerInstance, args);
+                    
+                    if (result instanceof ModelView) {
+                        ModelView modelView = (ModelView) result;
+                        
+                        // Transformer les données en JSON
+                        String jsonData = Utility.modelViewToJson(modelView);
+                        
+                        // Configurer le type de réponse comme text/json
+                        response.setContentType("text/json");
+                        
+                        // Écrire la réponse
+                        PrintWriter pw = response.getWriter();
+                        pw.print(jsonData);
+                    } else {
+                        // Transformer directement en JSON si ce n'est pas un ModelView
+                        String jsonData = Utility.objectToJson(result);
+                        
+                        // Configurer le type de réponse comme text/json
+                        response.setContentType("text/json");
+                        
+                        // Écrire la réponse
+                        PrintWriter pw = response.getWriter();
+                        pw.print(jsonData);
+                    }
+                    
+                    // Arrêter l'exécution après avoir envoyé la réponse JSON
+                    return;
                 }
                 
                 // Invocation de la méthode
@@ -159,7 +192,7 @@ public class FrontController extends HttpServlet {
                     default -> throw new ServletException("Ce type de retour ne peut pas etre gere pour le moment");
                 }
             } catch (Exception e) {
-                out.println(e.getMessage());
+                out.println("Erreur lors de l'invoquation de la méthode: " + e.getMessage());
             }
         } else {
             response.sendError(HttpServletResponse.SC_NOT_FOUND);

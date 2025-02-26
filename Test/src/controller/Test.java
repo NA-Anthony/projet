@@ -10,7 +10,8 @@ import service.*;
 public class Test {
     private String name = "Anthony";
 
-    @Get("kozy")
+    @Get
+    @Url(path = "kozy")
     public String getName() {
         return name;
     }
@@ -19,7 +20,8 @@ public class Test {
         this.name = name;
     }
 
-    @Get("test")
+    @Get
+    @Url(path = "test")
     public ModelView getMv() {
         ModelView mv = new ModelView();
         mv.setUrl("test.jsp");
@@ -28,21 +30,24 @@ public class Test {
         return mv;
     }
 
-    @Get("form")
+    @Get
+    @Url(path = "form")
     public ModelView Formulaire(){
         ModelView modelView=new ModelView();
         modelView.setUrl("/formulaire.jsp");
         return modelView;
     }
 
-    @Get("login")
+    @Get
+    @Url(path = "login")
     public ModelView login(){
         ModelView modelView=new ModelView();
         modelView.setUrl("/login.jsp");
         return modelView;
     }
 
-    @Get("demo")
+    @Get
+    @Url(path = "demo")
     public ModelView saveUser(@ParamName("user")User user, @ParamName("string") String test) { 
         ModelView modelView = new ModelView();
         modelView.setUrl("/affichage.jsp");
@@ -51,7 +56,8 @@ public class Test {
         return modelView;
     }
 
-    @Post("log")
+    @Post
+    @Url(path = "log")
     public ModelView log(HttpServletRequest request) {
         String identifiant = request.getParameter("identifiant");
         String mdp = request.getParameter("mdp");
@@ -74,7 +80,8 @@ public class Test {
         return modelView;
     }
 
-    @Get("log1")
+    @Get
+    @Url(path = "log")
     public ModelView log2(HttpServletRequest request) {
         String identifiant = request.getParameter("identifiant");
         String mdp = request.getParameter("mdp");
@@ -98,7 +105,8 @@ public class Test {
     }
 
 
-    @Get("deconnexion")
+    @Get
+    @Url(path = "deconnexion")
     public ModelView deconnexion(HttpServletRequest request) {
         MySession session = new MySession(request);
         session.destroy();  // Détruire la session
@@ -107,7 +115,8 @@ public class Test {
         return modelView;
     }
 
-    @Get("demo2")
+    @Get
+    @Url(path = "demo2")
     public ModelView demoUser(@ParamName("user")User user,String test) {
         ModelView modelView = new ModelView();
         modelView.setUrl("/affichage.jsp");
@@ -116,7 +125,8 @@ public class Test {
         return modelView;
     }
 
-    @Get("checkSession")
+    @Get
+    @Url(path = "checkSession")
     public ModelView checkSession(HttpServletRequest request) {
         MySession session = new MySession(request);
         ModelView modelView = new ModelView();
@@ -132,16 +142,20 @@ public class Test {
         return modelView;
     }
 
+    
+    @Get
     @Restapi
-    @Get("rest-api")
+    @Url(path = "rest-api")
     public ModelView getRestApi() {
         ModelView mv = new ModelView();
         mv.addObject("message", "Ceci est une réponse JSON");
         return mv;
     }
 
+    
+    @Get
     @Restapi
-    @Get("rest-api-string")
+    @Url(path = "rest-api-string")
     public String getRestApiString() {
         return "Ceci est une réponse JSON simple";
     }

@@ -104,8 +104,6 @@ public class Test {
         return modelView;
     }
 
-
-    @Get
     @Url(path = "deconnexion")
     public ModelView deconnexion(HttpServletRequest request) {
         MySession session = new MySession(request);

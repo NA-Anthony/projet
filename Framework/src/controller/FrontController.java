@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.List;
 import annotationClass.*;
 import modelClass.*;
+import exception.*;
 
 public class FrontController extends HttpServlet {
     private HashMap<String, Mapping> hashMap = new HashMap<>();
@@ -86,11 +87,13 @@ public class FrontController extends HttpServlet {
     
             try {
                 handleRequestMapping(mapping, request, response);
+            } catch (NotFoundException e) {
+                throw e; // Relancer l'exception pour qu'elle soit gérée par la méthode handleException
             } catch (Exception e) {
-                throw new ServletException("Erreur lors de l'invocation de la méthode: " + e.getMessage());
+                throw new InternalServerErrorException("Erreur lors de l'invocation de la méthode: " + e.getMessage());
             }
         } else {
-            response.sendError(HttpServletResponse.SC_NOT_FOUND); // 404 Not Found
+            throw new NotFoundException("La ressource demandée n'a pas été trouvée : " + url);
         }
     }
 
@@ -218,6 +221,22 @@ public class FrontController extends HttpServlet {
             }
         } else {
             throw new ServletException("Ce type de retour ne peut pas etre gere pour le moment");
+        }
+    }
+
+    private void handleException(Exception e, HttpServletResponse response) throws IOException {
+        if (e instanceof NotFoundException) {
+            response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+            response.getWriter().println("<h1>404 Not Found</h1>");
+            response.getWriter().println("<p>" + e.getMessage() + "</p>");
+        } else if (e instanceof InternalServerErrorException) {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            response.getWriter().println("<h1>500 Internal Server Error</h1>");
+            response.getWriter().println("<p>" + e.getMessage() + "</p>");
+        } else {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            response.getWriter().println("<h1>500 Internal Server Error</h1>");
+            response.getWriter().println("<p>Une erreur inattendue s'est produite : " + e.getMessage() + "</p>");
         }
     }
 

@@ -2,22 +2,23 @@ package controller;
 
 import javax.servlet.*;
 import javax.servlet.http.*;
+
 import java.io.*;
 import java.lang.reflect.*;
 import java.net.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 import annotationClass.*;
+import annotationClass.Date;
 import modelClass.*;
 import exception.*;
+import util.Validator;
 
 public class FrontController extends HttpServlet {
     private HashMap<String, Mapping> hashMap = new HashMap<>();
 
     @Override
     public void init() throws ServletException {
-        super.init(); // Appeler la méthode init de la superclasse HttpServlet
+        super.init();
         try {
             initialisation();
         } catch (Exception e) {
@@ -52,17 +53,16 @@ public class FrontController extends HttpServlet {
     }
 
     private void processControllerMethod(Class<?> controllerClass, Method method) throws Exception {
-        String url = method.getAnnotation(Url.class).path(); // Récupérer le chemin de l'URL
+        String url = method.getAnnotation(Url.class).path();
         String className = controllerClass.getName();
         String methodName = method.getName();
-    
-        // Par défaut, on suppose que c'est une méthode GET
+
         String httpMethod = "GET";
-    
-        // Créer un nouveau Verb
+        if (method.isAnnotationPresent(Post.class)) {
+            httpMethod = "POST";
+        }
+
         Verb verb = new Verb(httpMethod, methodName);
-    
-        // Enregistrer le mapping
         registerMapping(url, className, verb);
     }
 
@@ -81,41 +81,107 @@ public class FrontController extends HttpServlet {
     // Gestion des requêtes
     protected void processRequest(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         String url = getURLSplit(request.getRequestURL().toString());
-    
+
         if (hashMap.containsKey(url)) {
             Mapping mapping = hashMap.get(url);
-    
             try {
                 handleRequestMapping(mapping, request, response);
             } catch (NotFoundException e) {
-                throw e; // Relancer l'exception pour qu'elle soit gérée par la méthode handleException
+                handleException(e, response);
             } catch (Exception e) {
-                throw new InternalServerErrorException("Erreur lors de l'invocation de la méthode: " + e.getMessage());
+                handleException(new InternalServerErrorException(e.getMessage()), response);
             }
         } else {
-            throw new NotFoundException("La ressource demandée n'a pas été trouvée : " + url);
+            handleException(new NotFoundException("La ressource demandée n'a pas été trouvée : " + url), response);
         }
     }
 
     private void handleRequestMapping(Mapping mapping, HttpServletRequest request, HttpServletResponse response) throws Exception {
-        String httpMethod = "GET"; // Par défaut, on utilise GET
+        String httpMethod = request.getMethod();
         Verb verb = mapping.findVerbByType(httpMethod);
-    
+
         if (verb != null) {
             Class<?> controllerClass = Class.forName(mapping.getClasse());
             Object controllerInstance = createControllerInstance(controllerClass, request);
-    
+
             Method method = findMethod(controllerClass, verb.getMethod());
-            Object[] args = resolveMethodArguments(method, request);
-    
+            Parameter[] parameters = method.getParameters();
+            Object[] args = new Object[parameters.length];
+
+            // Validation des inputs
+            ValidationError validationError = null;
+
+            for (int i = 0; i < parameters.length; i++) {
+                Parameter parameter = parameters[i];
+                if(Utility.isPrimitive(parameter.getType())) {
+                    args[i] = resolvePrimitiveParameter(parameter, request);
+                } 
+                else if (parameter.isAnnotationPresent(ParamName.class)) {
+                    ParamName paramNameAnnotation = parameter.getAnnotation(ParamName.class);
+                    String paramPrefix = paramNameAnnotation.value();
+
+                    // Créer une instance de l'objet
+                    Object paramInstance = parameter.getType().getDeclaredConstructor().newInstance();
+
+                    // Créer un Map pour les inputs
+                    Map<String, String> inputs = new HashMap<>();
+                    for (Field field : paramInstance.getClass().getDeclaredFields()) {
+                        String fieldName = paramPrefix + "." + field.getName();
+                        String value = request.getParameter(fieldName);
+                        inputs.put(field.getName(), value);
+                    }
+
+                    // Valider les données avec Validator
+                    validationError = Validator.validateWithInputs(paramInstance, inputs);
+
+                    // Si des erreurs sont détectées, les transmettre à la requête
+                    if (validationError != null && validationError.hasErrors()) {
+                        request.setAttribute("validationError", validationError);
+                    }
+
+                    args[i] = paramInstance;
+                } else if (parameter.getType().equals(HttpServletRequest.class)) {
+                    args[i] = request;
+                } else if (parameter.getType().equals(HttpServletResponse.class)) {
+                    args[i] = response;
+                } else {
+                    throw new ServletException("Paramètre non pris en charge : " + parameter.getName());
+                }
+            }
+
+            // Appeler la méthode du contrôleur
             if (method.isAnnotationPresent(Restapi.class)) {
                 handleRestApiMethod(method, controllerInstance, args, response);
             } else {
                 handleRegularMethod(method, controllerInstance, args, request, response);
             }
         } else {
-            response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED); // 405 Method Not Allowed
+            response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
         }
+    }
+
+    private ValidationError validateInputs(Object[] args) throws IllegalAccessException {
+        ValidationError validationError = new ValidationError();
+
+        for (Object arg : args) {
+            if (arg != null) {
+                // Valider uniquement les objets complexes
+                Map<String, String> rawData = new HashMap<>();
+                for (Field field : arg.getClass().getDeclaredFields()) {
+                    field.setAccessible(true);
+                    Object value = field.get(arg);
+                    rawData.put(field.getName(), value != null ? value.toString() : null);
+                }
+
+                // Valider l'objet avec Validator
+                ValidationError objectErrors = Validator.validateWithInputs(arg, rawData);
+                if (objectErrors != null && objectErrors.hasErrors()) {
+                    validationError.merge(objectErrors); // Fusionner les erreurs
+                }
+            }
+        }
+
+        return validationError;
     }
 
     private Object createControllerInstance(Class<?> controllerClass, HttpServletRequest request) throws Exception {
@@ -127,7 +193,6 @@ public class FrontController extends HttpServlet {
                 field.set(controllerInstance, new MySession(request));
             }
         }
-
         return controllerInstance;
     }
 
@@ -140,19 +205,25 @@ public class FrontController extends HttpServlet {
         throw new NoSuchMethodException("Méthode non trouvée: " + methodName);
     }
 
-    // Gestion des arguments
-    private Object[] resolveMethodArguments(Method method, HttpServletRequest request) throws Exception {
+    private Object[] resolveMethodArguments(Method method, HttpServletRequest request, HttpServletResponse response) throws Exception {
         Parameter[] parameters = method.getParameters();
         Object[] args = new Object[parameters.length];
 
         for (int i = 0; i < parameters.length; i++) {
             Parameter parameter = parameters[i];
+
             if (parameter.getType().equals(HttpServletRequest.class)) {
                 args[i] = request;
-            } else if (Utility.isPrimitive(parameter.getType())) {
-                args[i] = resolvePrimitiveParameter(parameter, request);
+            } else if (parameter.getType().equals(HttpServletResponse.class)) {
+                args[i] = response;
             } else {
-                args[i] = resolveComplexParameter(parameter, request);
+                if(Utility.isPrimitive(parameter.getType())) {
+                    args[i] = resolvePrimitiveParameter(parameter, request);
+                } else if (parameter.isAnnotationPresent(ParamName.class)) {
+                    args[i] = resolveComplexParameter(parameter, request);
+                } else {
+                    throw new ServletException("Le paramètre doit être annoté avec @ParamName ou être de type primitif");
+                }
             }
         }
 
@@ -160,27 +231,51 @@ public class FrontController extends HttpServlet {
     }
 
     private Object resolvePrimitiveParameter(Parameter parameter, HttpServletRequest request) throws ServletException {
-        if (parameter.isAnnotationPresent(Param.class)) {
-            Param annotation = parameter.getAnnotation(Param.class);
-            return request.getParameter(annotation.value());
+        if (parameter.isAnnotationPresent(ParamName.class)) {
+            ParamName annotation = parameter.getAnnotation(ParamName.class);
+            String paramValue = annotation.value();
+            String value = request.getParameter(paramValue);
+
+            if (value == null || value.isEmpty()) {
+                return null;
+            }
+
+            try {
+                return Utility.parseValue(value, parameter.getType());
+            } catch (Exception e) {
+                return null;
+            }
         } else {
-            throw new ServletException("ETU002444: Erreur");
+            throw new ServletException("ETU002444: Le paramètre doit être annoté avec @ParamName");
         }
     }
 
-    private Object resolveComplexParameter(Parameter parameter, HttpServletRequest request) throws Exception {
+    private Object resolveComplexParameter(Parameter parameter, HttpServletRequest request) throws ServletException {
         Class<?> parameterType = parameter.getType();
-        Object obj = parameterType.getDeclaredConstructor().newInstance();
+        Object obj;
 
-        for (Field field : obj.getClass().getDeclaredFields()) {
-            Object value = Utility.parseValue(request.getParameter(parameter.getName() + "." + field.getName()), field.getType());
-            setObjectField(obj, obj.getClass().getDeclaredMethods(), field, value);
+        try {
+            obj = parameterType.getDeclaredConstructor().newInstance();
+        } catch (Exception e) {
+            throw new ServletException("Erreur lors de la création de l'objet : " + e.getMessage());
+        }
+
+        if (parameter.isAnnotationPresent(ParamName.class)) {
+            ParamName paramNameAnnotation = parameter.getAnnotation(ParamName.class);
+            String paramPrefix = paramNameAnnotation.value();
+
+            // Collecter les données brutes depuis la requête
+            Map<String, String> rawData = new HashMap<>();
+            for (Field field : obj.getClass().getDeclaredFields()) {
+                String fieldName = paramPrefix + "." + field.getName();
+                String value = request.getParameter(fieldName);
+                rawData.put(field.getName(), value);
+            }
         }
 
         return obj;
     }
 
-    // Gestion des réponses
     private void handleRestApiMethod(Method method, Object controllerInstance, Object[] args, HttpServletResponse response) throws Exception {
         Object result = method.invoke(controllerInstance, args);
 
@@ -211,16 +306,9 @@ public class FrontController extends HttpServlet {
                 request.setAttribute(key, data.get(key));
             }
 
-            try {
-                request.getRequestDispatcher(viewUrl).forward(request, response);
-            } catch (ServletException e) {
-                response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-                response.getWriter().println("<h1>500 Internal Server Error</h1>");
-                response.getWriter().println("<p>Une erreur s'est produite lors de l'appel à la vue : " + e.getMessage() + "</p>");
-                e.printStackTrace(response.getWriter());
-            }
+            request.getRequestDispatcher(viewUrl).forward(request, response);
         } else {
-            throw new ServletException("Ce type de retour ne peut pas etre gere pour le moment");
+            throw new ServletException("Ce type de retour ne peut pas être géré pour le moment");
         }
     }
 
@@ -240,7 +328,6 @@ public class FrontController extends HttpServlet {
         }
     }
 
-    // Méthodes utilitaires
     private boolean hasAnnotation(Class<?> classes, Class<? extends AnnotationController> annotation) {
         return classes.isAnnotationPresent(annotation);
     }

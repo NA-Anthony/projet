@@ -5,6 +5,7 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.time.LocalDate;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -13,20 +14,16 @@ import javax.servlet.http.*;
 
 public class Utility {
     private static final Gson gson = new Gson();
-    public static boolean isPrimitive(Class<?> clazz) {
-        List<Class<?>> primitiveTypes = Arrays.asList(
-                boolean.class,
-                byte.class,
-                short.class,
-                char.class,
-                int.class,
-                long.class,
-                float.class,
-                double.class,
-                String.class
-        );
-
-        return primitiveTypes.contains(clazz);
+    public static boolean isPrimitive(Class<?> type) {
+        return type.isPrimitive() || 
+               type.equals(Integer.class) || 
+               type.equals(Double.class) || 
+               type.equals(Float.class) || 
+               type.equals(Long.class) || 
+               type.equals(Short.class) || 
+               type.equals(Byte.class) || 
+               type.equals(Boolean.class) || 
+               type.equals(Character.class);
     }
 
     public static String capitalize(String str) {
@@ -34,15 +31,28 @@ public class Utility {
         return Character.toUpperCase(firstChar) + str.substring(1);
     }
 
-    public static Object parseValue(String value, Class<?> type) throws Exception {
-        if (type == int.class) {
-            return Integer.valueOf(value);
-        } else if (type == double.class) {
-            return Double.valueOf(value);
-        } else if (type == boolean.class) {
-            return Boolean.valueOf(value);
-        } else {
-            return value;
+    public static Object parseValue(String value, Class<?> type) {
+        if (value == null || value.trim().isEmpty()) {
+            return null; // Retourne null si la valeur est vide
+        }
+
+        try {
+            if (type.equals(Integer.class) || type.equals(int.class)) {
+                return Integer.parseInt(value);
+            } else if (type.equals(Double.class) || type.equals(double.class)) {
+                return Double.parseDouble(value);
+            } else if (type.equals(Boolean.class) || type.equals(boolean.class)) {
+                return Boolean.parseBoolean(value);
+            } else if (type.equals(LocalDate.class)) {
+                // Conversion de String en LocalDate
+                return LocalDate.parse(value, java.time.format.DateTimeFormatter.ISO_LOCAL_DATE);
+            } else {
+                return value; // Retourne la chaîne brute pour les autres types
+            }
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Impossible de convertir la valeur '" + value + "' en " + type.getSimpleName(), e);
+        } catch (java.time.format.DateTimeParseException e) {
+            throw new IllegalArgumentException("Impossible de convertir la valeur '" + value + "' en LocalDate", e);
         }
     }
 

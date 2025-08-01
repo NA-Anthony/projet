@@ -2,9 +2,14 @@ package controller;
 import javax.servlet.http.HttpServletRequest;
 
 import annotationClass.*;
+import annotationClass.Numeric;
 import modelClass.*;
 import model.*;
 import service.*;
+import exception.*;
+import util.*;
+import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 
 @AnnotationController()
 public class Test {
@@ -46,10 +51,22 @@ public class Test {
         return modelView;
     }
 
-    @Get
+    @Post
     @Url(path = "demo")
-    public ModelView saveUser(@ParamName("user")User user, @ParamName("string") String test) { 
+    public ModelView saveUser(@ParamName("user") User user, @ParamName("string") String test, HttpServletRequest request) {
         ModelView modelView = new ModelView();
+        // Récupérer les erreurs de validation depuis la requête
+        ValidationError validationError = (ValidationError) request.getAttribute("validationError");
+
+        // Si des erreurs sont détectées, retourner au formulaire avec les erreurs
+        if (validationError != null) {
+            modelView.setUrl("/formulaire.jsp"); 
+            modelView.addObject("errors", validationError.getErrors());
+            modelView.addObject("previousValues", validationError.getPreviousValues());
+            return modelView;
+        }
+
+        // Si la validation réussit, traiter les données
         modelView.setUrl("/affichage.jsp");
         modelView.addObject("user", user);
         modelView.addObject("test", test);
@@ -113,13 +130,26 @@ public class Test {
         return modelView;
     }
 
-    @Get
+    @Post
     @Url(path = "demo2")
-    public ModelView demoUser(@ParamName("user")User user,String test) {
+    public ModelView demoUser(@ParamName("user") User user, @ParamName("date") String date, HttpServletRequest request) {
         ModelView modelView = new ModelView();
+
+        // Récupérer les erreurs de validation depuis la requête
+        ValidationError validationError = (ValidationError) request.getAttribute("validationError");
+
+        // Si des erreurs sont détectées, retourner au formulaire avec les erreurs
+        if (validationError != null && validationError.hasErrors()) {
+        modelView.setUrl("/formulaire.jsp"); // Retourner au formulaire
+            modelView.addObject("errors", validationError.getErrors());
+            modelView.addObject("previousValues", validationError.getPreviousValues());
+            return modelView;
+        }
+
+        // Si la validation réussit, traiter les données
         modelView.setUrl("/affichage.jsp");
         modelView.addObject("user", user);
-        modelView.addObject("string", test);
+        modelView.addObject("date", date);
         return modelView;
     }
 

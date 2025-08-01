@@ -17,7 +17,6 @@ fi
 tomcat_path=$(grep "^tomcat_path=" "$config_file" | cut -d '=' -f2)
 projet=$(grep "^projet=" "$config_file" | cut -d '=' -f2)
 
-
 if [ -z "$tomcat_path" ]; then
     echo "Sélectionnez le dossier Tomcat..."
     tomcat_path=$(osascript -e 'tell application "Finder" to choose folder with prompt "Sélectionnez le dossier Tomcat"' -e 'POSIX path of result')
@@ -28,7 +27,6 @@ if [ -z "$tomcat_path" ]; then
     # Sauvegarde dans le fichier de configuration
     echo "$tomcat_path" >> "$config_file"
 fi
-
 
 # Définir les répertoires source, temporaire et de travail
 framework_src="/Users/nakanyanthony/Documents/GitHub/projet/Framework"
@@ -73,7 +71,7 @@ find "$temp_src" -name "*.java" -exec rm -f {} \;
 
 jar cvf "$destination_war" *
 
-rm -rf "$temp_src"
+# rm -rf "$temp_src"
 
 # Démarrage de Tomcat
 cd "$tomcat_bin"

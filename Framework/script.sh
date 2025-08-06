@@ -5,10 +5,23 @@ echo "                          -------      Chargement de la compilation      -
 set -e
 
 # Définir les répertoires source, temporaire et de travail
-src_dir="/Users/nakanyanthony/Documents/GitHub/projet/Framework/src"
-temp_src="/Users/nakanyanthony/Documents/GitHub/projet/Framework/temp-src"
-work_dir="/Users/nakanyanthony/Documents/GitHub/projet/Test"
-lib_dir="/Users/nakanyanthony/Documents/GitHub/projet/Framework/lib"
+path=$(pwd)
+src_dir="$path/src"
+temp_src="$path/temp-src"
+lib_dir="$path/lib"
+config_file="../Test/config.properties"
+work_dir=$(grep "^work_dir=" "$config_file" | cut -d '=' -f2)
+
+if [ -z "$work_dir" ]; then
+    echo "Sélectionnez le dossier de travail..."
+    work_dir=$(osascript -e 'tell application "Finder" to choose folder with prompt "Sélectionnez le dossier de travail"' -e 'POSIX path of result')
+
+    # Supprimer le dernier "/" s'il est présent
+    work_dir=$(echo "$work_dir" | sed 's:/*$::')
+
+    # Sauvegarde dans le fichier de configuration
+    echo "work_dir=$work_dir" >> "$config_file"
+fi
 
 # Créer le répertoire temporaire
 mkdir -p "$temp_src/bin"
@@ -36,5 +49,7 @@ find "$temp_src" -name "*.java" -delete
 rsync -av --progress "$temp_src/" "$work_dir"
 
 rm -rf "$temp_src"
+
+rm -rf "$work_dir/bin"
 
 echo "                              -------         Compilation terminée         -------"

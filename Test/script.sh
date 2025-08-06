@@ -5,6 +5,11 @@ set -e
 
 path=$(pwd)
 
+cd "../Framework"
+./script.sh
+
+cd "$path"
+
 # Charger le fichier de configuration
 config_file="config.properties"
 
@@ -14,7 +19,7 @@ if [ ! -f "$config_file" ]; then
 fi
 
 # Lire la valeur de tomcat_path
-tomcat_path=$(grep "^tomcat_path=" "$config_file" | cut -d '=' -f2)
+tomcat_path=$(grep "^tomcat_dir=" "$config_file" | cut -d '=' -f2)
 projet=$(grep "^projet=" "$config_file" | cut -d '=' -f2)
 
 if [ -z "$tomcat_path" ]; then
@@ -25,22 +30,17 @@ if [ -z "$tomcat_path" ]; then
     tomcat_path=$(echo "$tomcat_path" | sed 's:/*$::')
 
     # Sauvegarde dans le fichier de configuration
-    echo "$tomcat_path" >> "$config_file"
+    echo "tomcat_dir=$tomcat_path" >> "$config_file"
 fi
 
 # Définir les répertoires source, temporaire et de travail
-framework_src="/Users/nakanyanthony/Documents/GitHub/projet/Framework"
 src_dir="$path/src"
 temp_src="$path/temp-src"
-work_dir="$tomcat_path/webapps"
 lib_dir="$path/lib"
 config_dir="$path/config"
 web_dir="$path/web"
 tomcat_bin="$tomcat_path/bin"
 destination_war="$tomcat_path/webapps/$projet.war"
-
-cd "$framework_src"
-./script.sh
 
 echo "                              -------         Debut du déploiement         -------"
 
@@ -71,7 +71,7 @@ find "$temp_src" -name "*.java" -exec rm -f {} \;
 
 jar cvf "$destination_war" *
 
-# rm -rf "$temp_src"
+rm -rf "$temp_src"
 
 # Démarrage de Tomcat
 cd "$tomcat_bin"

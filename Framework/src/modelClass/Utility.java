@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.time.LocalDate;
+import java.sql.Date;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -102,5 +103,21 @@ public class Utility {
             httpSession.setAttribute(entry.getKey(), entry.getValue());
         }
         // return httpSession;
+    }
+
+    
+    /**** capital mot ****/
+    public static String capitalword(String str) {
+        str = str.substring(0, 1).toUpperCase() + str.substring(1);
+        return str;
+    }
+    
+    /*** Tranforme date ***/
+    public static Date castDate(String date) throws Exception{
+        try {
+            return Date.valueOf(date);
+        } catch (Exception e) {
+            throw new Exception("Date invalide");
+        }
     }
 }

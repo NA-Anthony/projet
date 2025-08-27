@@ -140,7 +140,7 @@ public class Test {
 
         // Si des erreurs sont détectées, retourner au formulaire avec les erreurs
         if (validationError != null && validationError.hasErrors()) {
-            modelView.setUrl("/formulaire.jsp"); // Retourner au formulaire
+        modelView.setUrl("/formulaire.jsp"); // Retourner au formulaire
             modelView.addObject("errors", validationError.getErrors());
             modelView.addObject("previousValues", validationError.getPreviousValues());
             return modelView;
